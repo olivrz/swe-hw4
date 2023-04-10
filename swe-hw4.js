@@ -1,15 +1,16 @@
 class ArrayStats extends Array {
-    average() {
-        const averageValue =
-            this.reduce((a, b) => a + b, 0) / this.length;
-        Object.defineProperty(this, "avgVal", {
-            value: averageValue, // add new property of the array
-            writable: false // set avgVal as immutable
-        });
-        return averageValue;
+
+    constructor(...vals) {
+        if(vals.some( (val) => typeof val !== "number"))
+            throw new Error("ArrayStats values MUST be numbers")
+        else if(vals.length=== 1) {
+            super([vals[0]]);
+        }
+        else super(...vals);
     }
 
-    average2() {
+    average() {
+        if(this.length === 1) return this;
         let reducerAverage =
             (accumulator, currentValue, currentIdx, array) => {
         let result = accumulator; // initially this is an empty array, passed as "initialValue"
@@ -19,25 +20,12 @@ class ArrayStats extends Array {
         result.push((previousSum + currentValue) / ++currentIdx);
         return result; // result array carries the accumulator value as the last element
         }
-        return this.reduce(reducerAverage, []);
+        return this.reduce(reducerAverage, new ArrayStats());
+
     }
 
     stdev() {
-        const averageValue = this.avgVal; // captured in the closure
-        function reducerVariance(accumulator, currentVal, currIdx, array) {
-            return accumulator
-                + (currentVal - averageValue)*(currentVal - averageValue);
-            }
-        const varianceVal = this.reduce( reducerVariance, 0 );
-        const stdevValue = Math.sqrt( varianceVal / (this.length-1) );
-        Object.defineProperty(this, "sdevVal", {
-            value: stdevValue, // add new property of the array
-            writable: false
-        });
-        return stdevValue;
-    }
-
-    stdev2() {
+        if(this.length === 1) return this;
         let reducerStdDev =
             (accumulator, currentValue, currentIdx, array) => {
                 let result = accumulator;
@@ -53,34 +41,36 @@ class ArrayStats extends Array {
                 result.push(Math.sqrt(currentSumSqr / (array.length-2)));
                 return result; // result array carries the accumulator (std. dev.) as the last element
             }
+        return this.reduce(reducerStdDev, new ArrayStats());
 
     }
 
-    mapperExtremes(currentValue, currentIdx) {
-        let average = this[this.length-2];
-        let stdDev = this[this.length-1];
-        let lowerBound = average - 2 * stdDev;
-        let upperBound = average + 2 * stdDev;
-        let correctedValue =
-            (currentValue < lowerBound) ? lowerBound : currentValue;
-        correctedValue =
-            (currentValue > upperBound) ? upperBound : currentValue;
-        return correctedValue;
-    }
-
+    /**
+     * Assumes that the average of the array is stored in the second to last index of the array
+     * and the standard deviation is stored in the last index of the array
+     */
     truncateExtremes() {
-        this.map(mapperExtremes);
-        this.pop();
-        this.pop();
-        console.log(this);
-        return this;
+        if(this === null || this === undefined || this.length === 1 || this.length === 2) return this;
+
+        let mapperExtremes = (currentValue, currentIdx) => {
+            let average = this[this.length-2];
+            let stdDev = this[this.length-1];
+            let lowerBound = average - (2 * stdDev);
+            let upperBound = average + (2 * stdDev);
+            let correctedValue = currentValue;
+            correctedValue =
+                (correctedValue < lowerBound) ? lowerBound : correctedValue;
+            correctedValue =
+                (correctedValue > upperBound) ? upperBound : correctedValue;
+            return correctedValue;
+        }
+
+        let newArray = this.map(mapperExtremes);
+        newArray.pop();
+        newArray.pop();
+        return new ArrayStats(...newArray);
     }
 
 }
 
-let myArray = new ArrayStats(7,11,5,14);
-console.log(myArray.average());
-console.log(myArray.stdev());
-//console.log(myArray.truncateExtremes());
-
-console.log(myArray.average2());
+module.exports = ArrayStats;
